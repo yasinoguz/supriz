@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>GIF ve Buton Büyüme + Animasyon</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        background: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        transition: background-color 0.8s ease;
+        overflow-x: hidden;
+        font-family: Arial, sans-serif;
+      }
+      #gif-container {
+        position: relative;
+        display: inline-block;
+        transition: background-color 0.8s ease;
+      }
+      #myGif {
+        max-width: 300px;
+        height: auto;
+        display: block;
+        background: transparent;
+        border-radius: 10px;
+        transition: width 0.5s ease, height 0.5s ease;
+      }
+      #message {
+        margin-top: 10px;
+        font-weight: bold;
+        font-size: 1.3em;
+        display: block; /* Başta görünür olsun */
+        transition: all 0.8s ease;
+        position: relative;
+        z-index: 100;
+        text-align: center;
+        max-width: 400px;
+      }
+      #message.top {
+        position: fixed;
+        top: 10px;
+        font-size: 1.1em;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 8px 15px;
+        border-radius: 12px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        z-index: 50;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 90vw;
+      }
+      #buttons {
+        margin-top: 15px;
+        transition: opacity 0.5s ease;
+        display: flex;
+        justify-content: center;
+        position: relative;
+      }
+      button {
+        font-size: 1em;
+        padding: 12px 30px;
+        margin: 0 15px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: padding 0.5s ease, font-size 0.5s ease,
+          background-color 0.3s ease;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+      }
+      #yesBtn {
+        background-color: #4caf50;
+        color: white;
+      }
+      #noBtn {
+        background-color: #f44336;
+        color: white;
+      }
+      /* Son aşama evet butonu resmin ortasında büyük ve üstte */
+      #final-button {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: none;
+        z-index: 10;
+      }
+      #final-button button {
+        font-size: 2.4em;
+        padding: 25px 60px;
+        border-radius: 15px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.7);
+        transition: background-color 0.3s ease;
+      }
+      #final-button button:hover {
+        background-color: #45a049;
+      }
+      /* Yumuşak pembe arka plan */
+      .soft-red-bg {
+        background-color: #ffe3e6 !important;
+        box-shadow: inset 0 0 60px rgba(255, 100, 100, 0.3);
+      }
+      /* Evet butonu titreşim animasyonu */
+      @keyframes shake {
+        0% {
+          transform: translateX(0);
+        }
+        20% {
+          transform: translateX(-10px);
+        }
+        40% {
+          transform: translateX(10px);
+        }
+        60% {
+          transform: translateX(-10px);
+        }
+        80% {
+          transform: translateX(10px);
+        }
+        100% {
+          transform: translateX(0);
+        }
+      }
+      .shake {
+        animation: shake 0.5s;
+      }
+      /* Hayıra tıklanamaz mesajı stili */
+      #noDisabledMessage {
+        position: absolute;
+        top: 100%;
+        margin-top: 8px;
+        width: 100%;
+        text-align: center;
+        color: #f44336;
+        font-weight: bold;
+        font-size: 0.9em;
+        user-select: none;
+        display: none; /* Başlangıçta gizli */
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gif-container">
+      <img src="./indir.gif" alt="Animasyon GIF" id="myGif" />
+      <div id="final-button">
+        <button id="finalYesBtn">Evet</button>
+      </div>
+    </div>
+
+    <div id="message">Seni üzdüğüm için özür dilerim, barışalım mı?</div>
+    <div id="buttons">
+      <button id="yesBtn">Evet</button>
+      <button id="noBtn">Hayır</button>
+      <div id="noDisabledMessage">Hayıra tıklayamazsın!</div>
+    </div>
+
+    <script>
+      const gif = document.getElementById("myGif");
+      const message = document.getElementById("message");
+      const buttons = document.getElementById("buttons");
+      const yesBtn = document.getElementById("yesBtn");
+      const noBtn = document.getElementById("noBtn");
+      const finalButtonDiv = document.getElementById("final-button");
+      const finalYesBtn = document.getElementById("finalYesBtn");
+      const gifContainer = document.getElementById("gif-container");
+      const body = document.body;
+      const noDisabledMessage = document.getElementById("noDisabledMessage");
+
+      let clickCount = 0;
+      const maxClicks = 5;
+      const growButtonsUntil = 4; // Buton büyümesi için tıklama sayısı
+
+      let baseGifWidth = 300;
+      let maxGifWidth = window.innerWidth;
+      let maxGifHeight = window.innerHeight;
+
+      const baseFontSize = 16;
+      const basePadding = 12;
+
+      const buttonFontStep = 6; // Daha belirgin büyüme
+      const buttonPaddingStep = 6;
+      const gifGrowthStep =
+        (maxGifWidth - baseGifWidth) / (maxClicks - growButtonsUntil);
+
+      let isPeaceScreen = false; // Barıştık ekranında mıyız?
+
+      function showFinalStage() {
+        gif.style.width = "100vw";
+        gif.style.height = "100vh";
+        gifContainer.classList.add("soft-red-bg");
+        body.classList.add("soft-red-bg");
+
+        buttons.style.display = "none";
+        message.style.display = "none";
+
+        finalButtonDiv.style.display = "block";
+        isPeaceScreen = false; // henüz barış ekranı değil
+      }
+
+      function resetToStart() {
+        body.style.backgroundColor = "white";
+        gifContainer.classList.remove("soft-red-bg");
+        gif.style.width = baseGifWidth + "px";
+        gif.style.height = "auto";
+
+        finalButtonDiv.style.display = "none";
+
+        message.innerHTML = "Barıştık! Her şey yolunda 😊";
+        message.style.display = "block";
+        message.classList.add("top");
+
+        buttons.style.display = "flex";
+        yesBtn.style.fontSize = baseFontSize + "px";
+        yesBtn.style.padding = `${basePadding}px 30px`;
+        noBtn.style.fontSize = baseFontSize + "px";
+        noBtn.style.padding = `${basePadding}px 30px`;
+        noBtn.style.display = "inline-block";
+
+        noBtn.disabled = false;
+        noDisabledMessage.style.display = "none";
+
+        isPeaceScreen = true;
+        clickCount = 0;
+      }
+
+      noBtn.addEventListener("click", () => {
+        if (!isPeaceScreen) {
+          // Barış ekranında değilsek hayıra tıklanabilir, mesaj yok
+          clickCount++;
+          message.style.display = "block";
+
+          if (clickCount <= growButtonsUntil) {
+            // Butonları büyüt
+            const newFontSize = baseFontSize + buttonFontStep * clickCount;
+            const newPadding = basePadding + buttonPaddingStep * clickCount;
+            yesBtn.style.fontSize = newFontSize + "px";
+            yesBtn.style.padding = `${newPadding}px 30px`;
+            noBtn.style.fontSize = newFontSize + "px";
+            noBtn.style.padding = `${newPadding}px 30px`;
+          } else {
+            // Buton büyümesini durdur, resim büyüsün
+            const gifClicks = clickCount - growButtonsUntil;
+            let newWidth = baseGifWidth + gifGrowthStep * gifClicks;
+            if (newWidth >= maxGifWidth) newWidth = maxGifWidth;
+
+            gif.style.width = newWidth + "px";
+            gif.style.height = "auto";
+
+            if (clickCount >= maxClicks) {
+              showFinalStage();
+            }
+          }
+          return;
+        }
+
+        // Barış ekranındaysak hayıra tıklanınca mesaj göster, butonu devre dışı bırak
+        noBtn.disabled = true;
+        noDisabledMessage.style.display = "block";
+
+        // Evet butonuna titreşim animasyonu ekle
+        yesBtn.classList.add("shake");
+        setTimeout(() => {
+          yesBtn.classList.remove("shake");
+        }, 500);
+
+        setTimeout(() => {
+          noBtn.disabled = false;
+          noDisabledMessage.style.display = "none";
+        }, 1500);
+      });
+
+      yesBtn.addEventListener("click", () => {
+        showFinalStage();
+      });
+
+      finalYesBtn.addEventListener("click", () => {
+        resetToStart();
+      });
+    </script>
+  </body>
+</html>
